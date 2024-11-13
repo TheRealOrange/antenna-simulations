@@ -61,7 +61,7 @@ def run_simulation(sim_params):
         octave.addpath(str(scripts_dir))
         
         # Run simulation
-        out = octave.simulate_yagi(
+        out = octave.simulate_yagi_thin(
             str(folder),
             params,
             design_parameters['f0'],
