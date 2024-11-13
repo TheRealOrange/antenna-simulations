@@ -53,7 +53,7 @@ function result = simulate_yagi(folder, params, f0, fc, R)
     yagi.total_length = max(yagi.director.positions);
 
     % Grid bounds and resolution
-    simBox.xy_max = max([yagi.reflector.length yagi.feed.length yagi.director.lengths]) + lambda0/6;
+    simBox.xy_max = max([yagi.reflector.length yagi.feed.length yagi.director.lengths]) + lambda0/4;
     simBox.z_min = -lambda0/2;
     simBox.z_max = yagi.total_length+lambda0;
 
@@ -61,37 +61,29 @@ function result = simulate_yagi(folder, params, f0, fc, R)
 
     % Calculate base cell size
     mesh.maxres   = floor(c0 / (f0+fc) / unit / 40);
-    mesh.fineres  = params.wire_rad;
+    mesh.fineres  = params.wire_rad / 2;
     mesh.transres = mesh.fineres * 2;
 
     %% Y axis mesh
     % Y mesh for wires
     mesh.y = -wire_rad*2:mesh.fineres:wire_rad*2;
     mesh.y = [mesh.y -wire_rad*2-10:2:-wire_rad*2];
-    mesh.y = SmoothMeshLines([mesh.y -wire_rad*2-10 -wire_rad*5-10], mesh.transres, 1.4);
-    mesh.y = SmoothMeshLines([mesh.y  wire_rad*2     wire_rad*5], mesh.transres, 1.4);
     % Y axis simulation bounds
     mesh.y = SmoothMeshLines([mesh.y -simBox.xy_max simBox.xy_max], mesh.maxres, 1.4);
 
     %% Z axis mesh
     % Z mesh for reflector element
     reflector_mesh = -wire_rad*2:mesh.fineres:wire_rad*2;
-    reflector_mesh = SmoothMeshLines([reflector_mesh -wire_rad*2 -wire_rad*6], mesh.transres, 1.4);
-    reflector_mesh = SmoothMeshLines([reflector_mesh  wire_rad*2  wire_rad*6], mesh.transres, 1.4);
     % Z mesh for feed element
     feed_mesh = [-wire_rad*2+yagi.feed.position:mesh.fineres:wire_rad*2+yagi.feed.position yagi.feed.position];
-    feed_mesh = SmoothMeshLines([feed_mesh -wire_rad*2+yagi.feed.position -wire_rad*6+yagi.feed.position], mesh.transres, 1.4);
-    feed_mesh = SmoothMeshLines([feed_mesh  wire_rad*2+yagi.feed.position  wire_rad*6+yagi.feed.position], mesh.transres, 1.4);
     % Add remaining Z mesh lines for director elements
     director_meshes = [];
     for wires=yagi.director.positions
         curr_director_mesh = -wire_rad*2+wires:mesh.fineres:wire_rad*2+wires;
-        curr_director_mesh = SmoothMeshLines([curr_director_mesh -wire_rad*2+wires -wire_rad*6+wires], mesh.transres, 1.4);
-        curr_director_mesh = SmoothMeshLines([curr_director_mesh  wire_rad*2+wires  wire_rad*6+wires], mesh.transres, 1.4);
         director_meshes = [director_meshes curr_director_mesh];
     end
     % Z axis simulation bounds
-    mesh.z = SmoothMeshLines([reflector_mesh feed_mesh director_meshes simBox.z_min simBox.z_max], mesh.maxres, 1.4);
+    mesh.z = SmoothMeshLines([reflector_mesh feed_mesh director_meshes simBox.z_min simBox.z_max], mesh.maxres, 1.3);
 
     %% X axis mesh
     % X axis mesh for feed

@@ -7,31 +7,27 @@ import shutil
 import uuid
 import logging
 
+class MeshCheckError(Exception):
+    """Custom exception for mesh check failures"""
+    pass
+
 class MeshCheckHandler(logging.Handler):
     def __init__(self):
         super().__init__()
         self.logs = []
-        self.mesh_check_found = False
-
+        
     def emit(self, record):
         msg = self.format(record)
         self.logs.append(msg)
         
-        # If we find "check your mesh" for the first time
-        if not self.mesh_check_found and "check your mesh" in msg.lower():
-            self.mesh_check_found = True
-            # Print all accumulated logs immediately
+        # If we find "check your mesh", print logs and raise exception
+        if "check your mesh" in msg.lower():
             print("\n=== Previous logs ===")
             for log in self.logs:
                 print(log)
             print("=" * 50)
-            # Clear the logs since we've printed them
-            self.logs = []
-        # After finding "check your mesh", print all subsequent logs immediately
-        elif self.mesh_check_found:
-            print(msg)
+            raise MeshCheckError("Mesh check failed - terminating simulation")
 
-# Function to run a single instance of the simulation
 def run_simulation(sim_params):
     base_dir = sim_params['base_dir']
     scripts_dir = sim_params['scripts']
@@ -77,12 +73,17 @@ def run_simulation(sim_params):
         result['success'] = True
         result['result'] = out
         
+    except MeshCheckError as e:
+        print(f"{process_id}: {str(e)}")
+        result['error'] = 'mesh_check_failed'
+        
     except Exception as e:
         print(f"{process_id}: An error occurred in folder {folder}: {str(e)}")
         result['error'] = str(e)
         
     finally:
-        octave.exit()
+        if 'octave' in locals():
+            octave.exit()
         # Clean up the simulation directory
         try:
             shutil.rmtree(folder)

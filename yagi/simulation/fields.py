@@ -1,5 +1,6 @@
 import random
 
+MIN_DIRECTORS = 4
 MAX_DIRECTORS = 15
 
 # Parameter bounds (as per the octave script)
@@ -26,15 +27,14 @@ def check_parameters(params, max_length):
         return False
     
     # Too many or too little directors
-    if len(params['director_spacings']) > MAX_DIRECTORS or len(params['director_spacings']) < 1:
+    if len(params['director_spacings']) > MAX_DIRECTORS or len(params['director_spacings']) < MIN_DIRECTORS:
         return False
     
     # Check that none of the feed, reflector or directors positions
     # are too close together (will cause meshing issues with OpenEMS)
-    all_pos = set([0.0] + [params['feed_point']] + params['director_spacings'])
-    all_pos = sorted(all_pos)
-    for r in range(len(all_pos) - 1):
-        if abs(all_pos[r] - all_pos[r+1]) < params['wire_rad']*6:
+    all_pos = [params['feed_point']] + params['director_spacings']
+    for pos in all_pos:
+        if pos < params['wire_rad']*7:
             return False
         
     # Check that none of the feed, reflector or directors edge lengths
@@ -42,7 +42,7 @@ def check_parameters(params, max_length):
     all_len = set([params['reflector_length']/2] + [params['feed_length']/2] + [length/2 for length in params['director_lengths']])
     all_len = sorted(all_len)
     for r in range(len(all_len) - 1):
-        if abs(all_len[r] - all_len[r+1]) < params['wire_rad']*2:
+        if abs(all_len[r] - all_len[r+1]) < 0.5:
             return False
         
     # Check that the generated antenna length is not too long
@@ -66,7 +66,7 @@ def random_configuration(max_length, n=1):
                 params[f] = random.random() * (fmax - fmin) + fmin
         
         # Decide on how many director elements to place
-        director_count = random.randint(1, MAX_DIRECTORS)
+        director_count = random.randint(MIN_DIRECTORS, MAX_DIRECTORS)
         minlen, maxlen = FIELDS['director_lengths']
         minspace, maxspace = FIELDS['director_spacings']
         params['director_lengths'] = []

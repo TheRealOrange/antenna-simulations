@@ -4,7 +4,7 @@ import random
 import numpy as np
 from tqdm import tqdm
 from copy import deepcopy
-from simulation import run_simulation, check_parameters, FIELDS, MAX_DIRECTORS, random_configuration
+from simulation import run_simulation, check_parameters, FIELDS, MAX_DIRECTORS, MIN_DIRECTORS, random_configuration
 
 def objective_function(sim_data, design_params):
     # Extract metrics
@@ -62,7 +62,7 @@ def mutate_parameters(params, temperature, max_length):
         if random.random() < temperature:
             # Potentially add or remove directors
             current_directors = len(new_params['director_lengths'])
-            if random.random() < 0.5 and current_directors > 1:
+            if random.random() < 0.5 and current_directors > MIN_DIRECTORS:
                 # Remove a random director
                 idx = random.randint(0, current_directors - 1)
                 new_params['director_lengths'].pop(idx)
@@ -142,13 +142,23 @@ if __name__ == "__main__":
     # Rough starting point
     INITIAL_PARAMS = {
         'wire_rad': 2.0, 
-        'reflector_length': 300.0, 
-        'feed_point': 150.0, 
+        'reflector_length': 334.49, 
+        'feed_point': 164.55, 
         'feed_gap': 10.0,
-        'feed_length': 270.0,
-        'director_spacings': [80.0, 75.0, 65.0, 55.0],
-        'director_lengths': [270.0, 270.0, 255.0, 250.0],
+        'feed_length': 330.47,
+        'director_spacings': [51.42, 123.41, 147.41, 171.41, 191.98, 205.69, 215.97, 226.26, 236.54, 246.83],
+        'director_lengths': [315.72, 312.75, 310.03, 307.54, 305.29, 303.24, 301.40, 299.74, 298.26, 296.94],
     }
+
+    if not check_parameters(INITIAL_PARAMS, MAX_LENGTH):
+        print("Invalid starting config!!")
+    # else:
+    #     print("Evaluating starting point")
+    #     params, res = run_simulation(prepare_mp_arguments(SIM_DIR, DESIGN_PARAMS, [INITIAL_PARAMS], scripts=OCTAVE_SCRIPTS)[0])
+    #     if res['success']:
+    #         print_result(params, res['result'], objective_function(res['result'], DESIGN_PARAMS))
+    #     else:
+    #         print(f"Simulation failed: {res.get('error', 'Unknown error')}")
     
     # Optimizer params
     INITIAL_TEMP = 1.0
@@ -203,6 +213,7 @@ if __name__ == "__main__":
         costs = [objective_function(res, DESIGN_PARAMS) for res in processed_results]
         # Update absolute best solution
         min_cost_idx = np.argmin(costs)
+        print(f"Best cost this iteration: {costs[min_cost_idx]}")
         if costs[min_cost_idx] < overall_best_cost:
             overall_best_cost = costs[min_cost_idx]
             overall_best_params = processed_population[min_cost_idx]
