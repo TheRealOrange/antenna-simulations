@@ -110,12 +110,25 @@ def prepare_mp_arguments(base_dir, design_params, parameter_sets, scripts="./mat
 
 def print_result(params, result, score):
     print("\nParameters:")
-    print(f"Pitch: {params['pitch']:.1f} mm")
-    print(f"Feed Height: {params['feed_height']:.1f} mm")
-    print(f"Reflector Radius: {params['reflector_radius']:.1f} mm")
-    print(f"Taper Radii: {params['taper_radius1']:.1f}, {params['taper_radius2']:.1f}, {params['taper_radius3']:.1f} mm")
-    print(f"Taper Turns: {params['taper_turns1']}, {params['taper_turns2']}, {params['taper_turns3']}")
+    # Print wire_rad if present
+    if 'wire_rad' in params:
+        print(f"Wire Radius: {params['wire_rad']:.2f} mm")
     
+    # Print mandatory parameters
+    print(f"Reflector Length: {params['reflector_length']:.2f} mm")
+    print(f"Feed Point: {params['feed_point']:.2f} mm")
+    print(f"Feed Gap: {params['feed_gap']:.2f} mm")
+    print(f"Feed Length: {params['feed_length']:.2f} mm")
+    
+    # Print director parameters
+    print("\nDirector Spacings:")
+    for i, spacing in enumerate(params['director_spacings'], 1):
+        print(f"  D{i}: {spacing:.2f} mm")
+    
+    print("\nDirector Lengths:")
+    for i, length in enumerate(params['director_lengths'], 1):
+        print(f"  D{i}: {length:.2f} mm")
+
     print("\nPerformance:")
     if 'f_resonance' in result:
         print(f"Resonant Frequency: {result['f_resonance']/1e6:.2f} MHz")
@@ -128,7 +141,7 @@ def print_result(params, result, score):
         print(f"Efficiency: {result['efficiency']*100:.1f}%")
     if 'HPBW' in result:
         print(f"HPBW: {result['HPBW']:.1f}°")
-    
+   
     print(f"\nObjective Function Score: {score:.3f}")
 
 if __name__ == "__main__":
@@ -141,7 +154,7 @@ if __name__ == "__main__":
 
     # Rough starting point
     INITIAL_PARAMS = {
-        'wire_rad': 2.0, 
+        #'wire_rad': 2.0, 
         'reflector_length': 334.49, 
         'feed_point': 164.55, 
         'feed_gap': 10.0,
@@ -152,13 +165,13 @@ if __name__ == "__main__":
 
     if not check_parameters(INITIAL_PARAMS, MAX_LENGTH):
         print("Invalid starting config!!")
-    # else:
-    #     print("Evaluating starting point")
-    #     params, res = run_simulation(prepare_mp_arguments(SIM_DIR, DESIGN_PARAMS, [INITIAL_PARAMS], scripts=OCTAVE_SCRIPTS)[0])
-    #     if res['success']:
-    #         print_result(params, res['result'], objective_function(res['result'], DESIGN_PARAMS))
-    #     else:
-    #         print(f"Simulation failed: {res.get('error', 'Unknown error')}")
+    else:
+        print("Evaluating starting point")
+        params, res = run_simulation(prepare_mp_arguments(SIM_DIR, DESIGN_PARAMS, [INITIAL_PARAMS], scripts=OCTAVE_SCRIPTS)[0])
+        if res['success']:
+            print_result(params, res['result'], objective_function(res['result'], DESIGN_PARAMS))
+        else:
+            print(f"Simulation failed: {res.get('error', 'Unknown error')}")
     
     # Optimizer params
     INITIAL_TEMP = 1.0

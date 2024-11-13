@@ -1,4 +1,4 @@
-function result = simulate_yagi(folder, params, f0, fc, R)
+function result = simulate_yagi_thin(folder, params, f0, fc, R)
     % Optimization function for helical antenna with constrained taper turns
 
     disp([mfilename ': SIMULATING...']);
@@ -25,7 +25,6 @@ function result = simulate_yagi(folder, params, f0, fc, R)
     % Setup simulation
     physical_constants;
     unit = 1e-3;    % all length in mm
-    wire_rad = params.wire_rad;
     support.y = -20;
 
     % Calculate wavelength
@@ -42,11 +41,11 @@ function result = simulate_yagi(folder, params, f0, fc, R)
     % Create director sections
     yagi.director.positions = [];
     for space=params.director_spacings
-      if length(yagi.director.positions) == 0
+    if length(yagi.director.positions) == 0
         yagi.director.positions = [space];
-      else
+    else
         yagi.director.positions = [yagi.director.positions space+yagi.director.positions(end)];
-      end
+    end
     end
     yagi.director.positions += yagi.feed.position;
     yagi.director.lengths = params.director_lengths;
@@ -61,25 +60,25 @@ function result = simulate_yagi(folder, params, f0, fc, R)
 
     % Calculate base cell size
     mesh.maxres   = floor(c0 / (f0+fc) / unit / 40);
-    mesh.fineres  = params.wire_rad / 2;
-    mesh.transres = mesh.fineres * 2;
+    mesh.fineres  = mesh.maxres / 4;
+    mesh.transres = mesh.maxres / 2;
 
     %% Y axis mesh
     % Y mesh for wires
-    mesh.y = -wire_rad*2:mesh.fineres:wire_rad*2;
+    mesh.y = [-mesh.fineres 0 mesh.fineres];
     mesh.y = [mesh.y support.y-7:2:support.y+7];
     % Y axis simulation bounds
     mesh.y = SmoothMeshLines([mesh.y -simBox.xy_max simBox.xy_max], mesh.maxres, 1.4);
 
     %% Z axis mesh
     % Z mesh for reflector element
-    reflector_mesh = -wire_rad*2:mesh.fineres:wire_rad*2;
+    reflector_mesh = -mesh.fineres:mesh.fineres:mesh.fineres;
     % Z mesh for feed element
-    feed_mesh = [-wire_rad*2+yagi.feed.position:mesh.fineres:wire_rad*2+yagi.feed.position yagi.feed.position];
+    feed_mesh = [-mesh.fineres+yagi.feed.position:mesh.fineres:mesh.fineres+yagi.feed.position yagi.feed.position];
     % Add remaining Z mesh lines for director elements
     director_meshes = [];
     for wires=yagi.director.positions
-        curr_director_mesh = -wire_rad*2+wires:mesh.fineres:wire_rad*2+wires;
+        curr_director_mesh = -mesh.fineres+wires:mesh.fineres:mesh.fineres+wires;
         director_meshes = [director_meshes curr_director_mesh];
     end
     % Z axis simulation bounds
@@ -97,9 +96,8 @@ function result = simulate_yagi(folder, params, f0, fc, R)
     mesh = AddPML(mesh, [8 8 8 8 8 16]);  % add PML lines in both z-directions
 
     %% Print some information about the antenna and the simulation
-    disp( ['Yagi-Uda Parameters']);
+    disp( ['Yagi-Uda Parameters (Thin Wire)']);
     disp( ['Total Length       : '  num2str(yagi.total_length)   ]);
-    disp( ['Wire Radius        : '  num2str(wire_rad)            ]);
     disp( ['Feed Position      : '  num2str(yagi.feed.position)  ]);
     disp( ['Feed Gap           : '  num2str(yagi.feed.gap)       ]);
     disp( ['Feed Length        : '  num2str(yagi.feed.length)    ]);
@@ -141,23 +139,23 @@ function result = simulate_yagi(folder, params, f0, fc, R)
     %% Create the reflector wire
     start = [-yagi.reflector.length/2 0 0];
     stop  = [ yagi.reflector.length/2 0 0];
-    CSX = AddWire(CSX, 'aluminium', 10, [start' stop'], wire_rad);
+    CSX = AddCurve(CSX, 'aluminium', 10, [start' stop']);
 
     %% Create the feed wires (two wires)
     % Wire -X
     start = [-yagi.feed.length/2 0 yagi.feed.position];
     stop  = [-yagi.feed.gap/2    0 yagi.feed.position];
-    CSX = AddWire(CSX, 'aluminium', 0, [start' stop'], wire_rad);
+    CSX = AddCurve(CSX, 'aluminium', 0, [start' stop']);
     % Wire +X
     start = [ yagi.feed.length/2 0 yagi.feed.position];
     stop  = [ yagi.feed.gap/2    0 yagi.feed.position];
-    CSX = AddWire(CSX, 'aluminium', 10, [start' stop'], wire_rad);
+    CSX = AddCurve(CSX, 'aluminium', 10, [start' stop']);
 
     %% Create the director wires
     for n=1:length(yagi.director.positions)
-      start = [-yagi.director.lengths(n)/2 0 yagi.director.positions(n)];
-      stop  = [ yagi.director.lengths(n)/2 0 yagi.director.positions(n)];
-      CSX = AddWire(CSX, 'aluminium', 10, [start' stop'], wire_rad);
+    start = [-yagi.director.lengths(n)/2 0 yagi.director.positions(n)];
+    stop  = [ yagi.director.lengths(n)/2 0 yagi.director.positions(n)];
+    CSX = AddCurve(CSX, 'aluminium', 10, [start' stop']);
     end
 
     %% Create the central support
@@ -177,6 +175,8 @@ function result = simulate_yagi(folder, params, f0, fc, R)
     start = [mesh.x(11)      mesh.y(11)     mesh.z(11)];
     stop  = [mesh.x(end-10) mesh.y(end-10) mesh.z(end-10)];
     [CSX nf2ff] = CreateNF2FFBox(CSX, 'nf2ff', start, stop, 'OptResolution', lambda0/15);
+
+    disp([mfilename ': RUNNING SIMULATION']);
 
     disp([mfilename ': RUNNING SIMULATION']);
 

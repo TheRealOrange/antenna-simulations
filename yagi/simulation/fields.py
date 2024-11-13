@@ -5,7 +5,7 @@ MAX_DIRECTORS = 15
 
 # Parameter bounds (as per the octave script)
 FIELDS = {
-    'wire_rad': (2, 4), 
+    #'wire_rad': (2, 4), 
     'reflector_length': (100, 400), 
     'feed_point': (100, 300), 
     'feed_gap': (5, 25),
@@ -15,7 +15,7 @@ FIELDS = {
 }
 
 # Parameter sanity check
-def check_parameters(params, max_length):
+def check_parameters(params, max_length, element_spacing=25.0, min_res=0.5):
     for f, (fmin, fmax) in FIELDS.items():
         if not f in params:
             return False
@@ -34,7 +34,7 @@ def check_parameters(params, max_length):
     # are too close together (will cause meshing issues with OpenEMS)
     all_pos = [params['feed_point']] + params['director_spacings']
     for pos in all_pos:
-        if pos < params['wire_rad']*7:
+        if pos < element_spacing:
             return False
         
     # Check that none of the feed, reflector or directors edge lengths
@@ -42,7 +42,7 @@ def check_parameters(params, max_length):
     all_len = set([params['reflector_length']/2] + [params['feed_length']/2] + [length/2 for length in params['director_lengths']])
     all_len = sorted(all_len)
     for r in range(len(all_len) - 1):
-        if abs(all_len[r] - all_len[r+1]) < 0.5:
+        if abs(all_len[r] - all_len[r+1]) < min_res:
             return False
         
     # Check that the generated antenna length is not too long
