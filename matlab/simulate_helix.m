@@ -66,9 +66,10 @@ function result = simulate_helix(folder, params, f0, fc, R)
     mesh.transres_z = min(mesh.maxres_z / 2,  mesh.fineres_z*2        );
 
     % Setup XY direction mesh to be finer around helix region
-    mesh.x = SmoothMeshLines([-helix.radius*1.3 -params.reflector_radius -helix.taper_radius 0 helix.taper_radius params.reflector_radius helix.radius*1.3], mesh.fineres, 1.4);
-    mesh.x = SmoothMeshLines([mesh.x  helix.radius*1.3  helix.radius*1.5], mesh.transres, 1.4);
-    mesh.x = SmoothMeshLines([mesh.x -helix.radius*1.3 -helix.radius*1.5], mesh.transres, 1.4);
+    bounding_radius = max(helix.radius, params.reflector_radius);
+    mesh.x = SmoothMeshLines([-bounding_radius*1.3 -params.reflector_radius -helix.taper_radius 0 helix.taper_radius params.reflector_radius bounding_radius*1.3], mesh.fineres, 1.4);
+    mesh.x = SmoothMeshLines([mesh.x  bounding_radius*1.3  bounding_radius*1.5], mesh.transres, 1.4);
+    mesh.x = SmoothMeshLines([mesh.x -bounding_radius*1.3 -bounding_radius*1.5], mesh.transres, 1.4);
     mesh.x = SmoothMeshLines([mesh.x -simBox.xy_max simBox.xy_max], mesh.maxres, 1.4);
     % Copy x mesh to y axis
     mesh.y = mesh.x;
@@ -179,7 +180,7 @@ function result = simulate_helix(folder, params, f0, fc, R)
 
     % Write and run simulation
     WriteOpenEMS([folder '/helix.xml'], FDTD, CSX);
-    RunOpenEMS(folder, 'helix.xml', '--engine=fastest');
+    RunOpenEMS(folder, 'helix.xml', '--engine=multithreaded --numThreads=11');
 
     %% Process frequency domain results
     freq = linspace(f0-fc, f0+fc, 501);  % Increased number of points for better resolution
