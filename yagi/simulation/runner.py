@@ -1,5 +1,6 @@
 import os
 import multiprocessing as mp
+import time
 from simulation import util
 from oct2py import Oct2Py
 import atexit
@@ -12,9 +13,10 @@ class MeshCheckError(Exception):
     pass
 
 class MeshCheckHandler(logging.Handler):
-    def __init__(self):
+    def __init__(self, print_on_error=True):
         super().__init__()
         self.logs = []
+        self.print_on_error = print_on_error
         
     def emit(self, record):
         msg = self.format(record)
@@ -22,10 +24,11 @@ class MeshCheckHandler(logging.Handler):
         
         # If we find "check your mesh", print logs and raise exception
         if "check your mesh" in msg.lower():
-            print("\n=== Previous logs ===")
-            for log in self.logs:
-                print(log)
-            print("=" * 50)
+            if self.print_on_error:
+                print("\n=== Previous logs ===")
+                for log in self.logs:
+                    print(log)
+                print("=" * 50)
             raise MeshCheckError("Mesh check failed - terminating simulation")
 
 def run_simulation(sim_params):
@@ -45,6 +48,8 @@ def run_simulation(sim_params):
     atexit.register(lambda: util.cleanup_environment(inputrc_path, original_env))
     
     result = {'success': False, 'result': {}, 'error': '', 'folder': folder}
+
+    start_time = time.time()
     
     try:
         # Create Oct2Py instance with immediate logging
@@ -52,7 +57,7 @@ def run_simulation(sim_params):
         oct_logger.setLevel(logging.INFO)
         
         # Create and configure handler
-        handler = MeshCheckHandler()
+        handler = MeshCheckHandler(print_on_error=False)
         formatter = logging.Formatter('%(message)s')
         handler.setFormatter(formatter)
         oct_logger.addHandler(handler)
@@ -72,6 +77,7 @@ def run_simulation(sim_params):
         
         result['success'] = True
         result['result'] = out
+        result['time'] = time.time() - start_time
         
     except MeshCheckError as e:
         print(f"{process_id}: {str(e)}")

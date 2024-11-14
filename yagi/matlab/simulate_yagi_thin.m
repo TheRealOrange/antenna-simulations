@@ -59,7 +59,7 @@ function result = simulate_yagi_thin(folder, params, f0, fc, R)
     disp([mfilename ': MESH SETUP']);
 
     % Calculate base cell size
-    mesh.maxres   = floor(c0 / (f0+fc) / unit / 40);
+    mesh.maxres   = floor(c0 / (f0+fc) / unit / 20);
     mesh.fineres  = mesh.maxres / 4;
     mesh.transres = mesh.maxres / 2;
 
@@ -72,13 +72,13 @@ function result = simulate_yagi_thin(folder, params, f0, fc, R)
 
     %% Z axis mesh
     % Z mesh for reflector element
-    reflector_mesh = -mesh.fineres:mesh.fineres:mesh.fineres;
+    reflector_mesh = [-mesh.fineres 0 mesh.fineres];
     % Z mesh for feed element
-    feed_mesh = [-mesh.fineres+yagi.feed.position:mesh.fineres:mesh.fineres+yagi.feed.position yagi.feed.position];
+    feed_mesh = [-mesh.fineres 0 mesh.fineres]+yagi.feed.position;
     % Add remaining Z mesh lines for director elements
     director_meshes = [];
     for wires=yagi.director.positions
-        curr_director_mesh = -mesh.fineres+wires:mesh.fineres:mesh.fineres+wires;
+        curr_director_mesh = [-mesh.fineres 0 mesh.fineres]+wires;
         director_meshes = [director_meshes curr_director_mesh];
     end
     % Z axis simulation bounds
@@ -86,17 +86,17 @@ function result = simulate_yagi_thin(folder, params, f0, fc, R)
 
     %% X axis mesh
     % X axis mesh for feed
-    mesh.x = SmoothMeshLines([-yagi.feed.gap/2 0 yagi.feed.gap/2], mesh.fineres);
-    mesh.x = SmoothMeshLines([mesh.x  yagi.feed.gap*2  yagi.director.lengths/2  yagi.reflector.length/2  yagi.feed.length/2], mesh.transres, 1.4);
-    mesh.x = SmoothMeshLines([mesh.x -yagi.feed.gap*2 -yagi.director.lengths/2 -yagi.reflector.length/2 -yagi.feed.length/2], mesh.transres, 1.4);
+    feed_mesh = [-yagi.feed.gap/2 0 yagi.feed.gap/2];
+    elements_mesh1 = [ yagi.director.lengths/2  yagi.reflector.length/2  yagi.feed.length/2];
+    elements_mesh2 = [-yagi.director.lengths/2 -yagi.reflector.length/2 -yagi.feed.length/2];
     % X axis simulation bounds
-    mesh.x = SmoothMeshLines([mesh.x -simBox.xy_max simBox.xy_max yagi.director.lengths/2 -yagi.director.lengths/2], mesh.maxres, 1.4);
-
+    mesh.x = SmoothMeshLines([feed_mesh elements_mesh1 elements_mesh2], mesh.transres, 1.4);
+    mesh.x = SmoothMeshLines([mesh.x -simBox.xy_max simBox.xy_max], mesh.maxres, 1.4);;
 
     mesh = AddPML(mesh, [8 8 8 8 8 16]);  % add PML lines in both z-directions
 
     %% Print some information about the antenna and the simulation
-    disp( ['Yagi-Uda Parameters (Thin Wire)']);
+    disp( ['Yagi-Uda Parameters']);
     disp( ['Total Length       : '  num2str(yagi.total_length)   ]);
     disp( ['Feed Position      : '  num2str(yagi.feed.position)  ]);
     disp( ['Feed Gap           : '  num2str(yagi.feed.gap)       ]);
@@ -130,11 +130,11 @@ function result = simulate_yagi_thin(folder, params, f0, fc, R)
     disp([mfilename ': ANTENNA GEOMETRY SETUP']);
 
     % Add materials
-    CSX = AddMaterial( CSX, 'aluminium' );
-    CSX = SetMaterialProperty(CSX,'aluminium','Kappa',36e6);
+    CSX = AddMetal( CSX, 'aluminium' );
+    %CSX = SetMaterialProperty(CSX,'aluminium','Kappa', 36e6);
     %% create the central carbon fiber support
     CSX = AddMaterial( CSX, 'support' ); % create carbon fiber material
-    CSX = SetMaterialProperty(CSX,'support','Kappa',3.3e2, 'Epsilon', 5000);
+    CSX = SetMaterialProperty(CSX,'support','Kappa', 3.3e2, 'Epsilon', 5000);
 
     %% Create the reflector wire
     start = [-yagi.reflector.length/2 0 0];
@@ -145,7 +145,7 @@ function result = simulate_yagi_thin(folder, params, f0, fc, R)
     % Wire -X
     start = [-yagi.feed.length/2 0 yagi.feed.position];
     stop  = [-yagi.feed.gap/2    0 yagi.feed.position];
-    CSX = AddCurve(CSX, 'aluminium', 0, [start' stop']);
+    CSX = AddCurve(CSX, 'aluminium', 10, [start' stop']);
     % Wire +X
     start = [ yagi.feed.length/2 0 yagi.feed.position];
     stop  = [ yagi.feed.gap/2    0 yagi.feed.position];
@@ -175,8 +175,6 @@ function result = simulate_yagi_thin(folder, params, f0, fc, R)
     start = [mesh.x(11)      mesh.y(11)     mesh.z(11)];
     stop  = [mesh.x(end-10) mesh.y(end-10) mesh.z(end-10)];
     [CSX nf2ff] = CreateNF2FFBox(CSX, 'nf2ff', start, stop, 'OptResolution', lambda0/15);
-
-    disp([mfilename ': RUNNING SIMULATION']);
 
     disp([mfilename ': RUNNING SIMULATION']);
 

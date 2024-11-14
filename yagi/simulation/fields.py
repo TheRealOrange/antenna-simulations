@@ -15,7 +15,7 @@ FIELDS = {
 }
 
 # Parameter sanity check
-def check_parameters(params, max_length, element_spacing=25.0, min_res=0.5):
+def check_parameters(params, max_length, element_spacing=25.0, min_res=1):
     for f, (fmin, fmax) in FIELDS.items():
         if not f in params:
             return False
@@ -56,26 +56,52 @@ def check_parameters(params, max_length, element_spacing=25.0, min_res=0.5):
     
     return True
 
-def random_configuration(max_length, n=1):
+def adjust_to_min_difference(value, existing_values, min_diff=2.0):
+    for existing in existing_values:
+        diff = abs(value - existing)
+        if 0 < diff < min_diff:
+            # If closer to existing value, snap to it, otherwise move away by min_diff
+            if diff < min_diff/2:
+                return existing
+            else:
+                return existing + min_diff if value > existing else existing - min_diff
+    return value
+
+def random_configuration(max_length, n=1, min_res=1):
     configs = []
+    min_diff = min_res*2
     while len(configs) < n:
         params = dict()
+        all_lengths = []  # Keep track of all lengths for minimum difference checking
+        
+        # Generate non-director parameters
         for f, (fmin, fmax) in FIELDS.items():
             if not 'director' in f:
-                # For director elements, generate differently
-                params[f] = random.random() * (fmax - fmin) + fmin
+                raw_value = random.uniform(fmin, fmax)
+                if 'length' in f:  # Only adjust length parameters
+                    raw_value = adjust_to_min_difference(raw_value, all_lengths, min_diff)
+                    all_lengths.append(raw_value)
+                params[f] = raw_value
         
-        # Decide on how many director elements to place
+        # Generate director elements
         director_count = random.randint(MIN_DIRECTORS, MAX_DIRECTORS)
         minlen, maxlen = FIELDS['director_lengths']
         minspace, maxspace = FIELDS['director_spacings']
+        
         params['director_lengths'] = []
         params['director_spacings'] = []
-        # For each director element, generate a spacing and a length
+        
         for _ in range(director_count):
-            params['director_lengths'].append(random.random() * (maxlen - minlen) + minlen)
-            params['director_spacings'].append(random.random() * (maxspace - minspace) + minspace)
-
-        if check_parameters(params, max_length):
+            # Generate length with minimum difference check
+            raw_length = random.uniform(minlen, maxlen)
+            adjusted_length = adjust_to_min_difference(raw_length, all_lengths, min_diff)
+            params['director_lengths'].append(adjusted_length)
+            all_lengths.append(adjusted_length)
+            
+            # Generate spacing (no adjustment needed)
+            params['director_spacings'].append(random.uniform(minspace, maxspace))
+        
+        if check_parameters(params, max_length, min_res=min_res):
             configs.append(params)
+    
     return configs
