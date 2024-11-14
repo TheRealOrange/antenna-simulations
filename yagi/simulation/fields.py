@@ -67,7 +67,7 @@ def adjust_to_min_difference(value, existing_values, min_diff=2.0):
                 return existing + min_diff if value > existing else existing - min_diff
     return value
 
-def random_configuration(max_length, n=1, min_res=1):
+def random_configuration(max_length, n=1, min_res=1, sort=True):
     configs = []
     min_diff = min_res*2
     while len(configs) < n:
@@ -100,6 +100,10 @@ def random_configuration(max_length, n=1, min_res=1):
             
             # Generate spacing (no adjustment needed)
             params['director_spacings'].append(random.uniform(minspace, maxspace))
+
+        # Directors in descending length
+        if sort:
+            params['director_lengths'].sort(reverse=True)
         
         if check_parameters(params, max_length, min_res=min_res):
             configs.append(params)

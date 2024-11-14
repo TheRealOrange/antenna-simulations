@@ -71,7 +71,7 @@ def new_population(population_size, top_params, temperature, max_length, min_res
         weights = [1/(i+1) for i in range(len(top_params))]  # Higher weight for better solutions
         total_weight = sum(weights)
         weights = [w/total_weight for w in weights]  # Normalize weights
-        chosen = random.choices(top_params, weights=weights, k=1)[0]  # Select params only
+        chosen = random.choices(top_params, weights=weights, k=1)[0][0]  # Select params only
 
         new_params = mutate_parameters(chosen, temperature, max_length, min_res)
         if new_params is not None:
@@ -139,12 +139,30 @@ def mutate_parameters(params, temperature, max_length, min_res):
             new_len = adjust_to_min_difference(new_len, all_lengths, min_diff)
             all_lengths.append(new_len)
             new_params['director_lengths'][i] = new_len
-            
-            # Mutate spacings (no minimum difference needed)
-            min_space, max_space = FIELDS['director_spacings']
+        
+
+        # Mutate spacings 
+        # Shift the elements around
+        for i in range(len(new_params['director_spacings'])-1):
+            min_space, _ = FIELDS['director_spacings']
+            max_space = new_params['director_spacings'][i+1]/2
             variation = (max_space - min_space) * mutation_strength
             new_space = new_params['director_spacings'][i] + random.gauss(0, variation)
-            new_params['director_spacings'][i] = np.clip(new_space, min_space, max_space)
+            new_space = np.clip(new_space, min_space, max_space)
+            difference = new_space - new_params['director_spacings'][i]
+            # Keep overall length of antenna the same if it will make it too long
+            if (sum(new_params['director_spacings']) + new_params['feed_point'] > max_length):
+                new_params['director_spacings'][i+1] -= difference
+            new_params['director_spacings'][i] = new_space
+
+        # Mutate last element
+        spare_length = max_length - sum(new_params['director_spacings']) + new_params['feed_point'];
+        if (spare_length > 0):
+            min_space, _ = FIELDS['director_spacings']
+            max_space = spare_length
+            variation = (max_space - min_space) * mutation_strength
+            new_space = new_params['director_spacings'][-1] + random.gauss(0, variation)
+            new_params['director_spacings'][-1] = np.clip(new_space, min_space, max_space)
         
         # Verify the new configuration is valid
         if check_parameters(new_params, max_length, min_res=min_res):
@@ -172,7 +190,7 @@ def print_result(params, result, score):
     # Print director parameters in aligned columns
     num_directors = len(params['director_spacings'])
     print("\nDirectors:")
-    print("    " + "".join([f"{f'D{i}':>9}" for i in range(1, num_directors + 1)]))
+    print("    " + "".join([f"{f'D{i}':>8} " for i in range(1, num_directors + 1)]))
     print("Spa " + "".join([f"{spacing:8.2f} " for spacing in params['director_spacings']]))
     print("Len " + "".join([f"{length:8.2f} " for length in params['director_lengths']]))
 
@@ -245,13 +263,13 @@ if __name__ == "__main__":
             exit()
 
     # [Optimizer parameters remain unchanged]
-    INITIAL_TEMP = 1.0
+    INITIAL_TEMP = 0.75
     FINAL_TEMP = 0.01
     COOLING_RATE = 0.95
     TOP_N_COUNT = 15
     SIM_PARALLEL = 32
     SIM_POPULATION = 64
-    SIM_ITERATIONS = 100
+    SIM_ITERATIONS = 50
 
     # Create the working directory if it does not yet exist
     SIM_DIR.mkdir(exist_ok=True)
@@ -268,7 +286,7 @@ if __name__ == "__main__":
     best_solutions = [(INITIAL_PARAMS, score)] 
 
     # Starting population
-    population = new_population(SIM_POPULATION, INITIAL_PARAMS, temperature, MAX_LENGTH, MIN_RES)
+    population = new_population(SIM_POPULATION, best_solutions, temperature, MAX_LENGTH, MIN_RES)
 
     while temperature > FINAL_TEMP and iteration < SIM_ITERATIONS:
         print(f"\nIteration {iteration + 1}/{SIM_ITERATIONS}, Temperature: {temperature:.4f}")
